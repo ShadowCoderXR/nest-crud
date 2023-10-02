@@ -4,11 +4,15 @@ import { User } from './user.entity';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { HttpException } from '@nestjs/common/exceptions';
+import { CreateProfileDto } from './dto/create-profile.dto';
+import { Profile } from './profile.entity';
 
 @Injectable()
 export class UsersService {
-    constructor(@InjectRepository(User) private userRepository: Repository<User>) {}
+    constructor(
+        @InjectRepository(User) private userRepository: Repository<User>,
+        @InjectRepository(Profile) private profileRepository: Repository<Profile>
+        ) {}
 
     async createUser(user: CreateUserDto){
         const userFound = await this.userRepository.findOne({
@@ -33,7 +37,8 @@ export class UsersService {
         const userFound = await this.userRepository.findOne({
             where: {
                 id
-            }
+            },
+            relations: ['profile', 'posts']
         });
 
         if(!userFound){
@@ -68,4 +73,23 @@ export class UsersService {
 
         return {'message': 'User deleted successfully'}
     }
+
+    async createProfile(id: number, profile: CreateProfileDto){
+        const userFound = await this.userRepository.findOne({
+            where: {
+                id
+            }
+        });
+
+        if(!userFound){
+            throw new NotFoundException('User not found');
+        }
+
+        const newProfile = this.profileRepository.create(profile);
+        const savedProfile = await this.profileRepository.save(newProfile);
+        userFound.profile = savedProfile;
+
+        return this.userRepository.save(userFound);
+    }
+
 }
